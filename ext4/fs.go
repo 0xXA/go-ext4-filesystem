@@ -329,6 +329,26 @@ func (ext4 *FileSystem) Open(name string) (fs.File, error) {
 	const op = "open"
 
 	name = strings.TrimPrefix(name, "/")
+	if name == "" || name == "." {
+		// Handle root directory
+		inode, err := ext4.getInode(rootInodeNumber)
+		if err != nil {
+			return nil, ext4.wrapError(op, "/", xerrors.Errorf("failed to get root inode: %w", err))
+		}
+		return &File{
+			fs:       ext4,
+			FileInfo: FileInfo{
+				name:  "/",
+				ino:   rootInodeNumber,
+				inode: inode,
+				mode:  fs.FileMode(inode.Mode),
+			},
+			filePath:  "/",
+			blockSize: ext4.sb.GetBlockSize(),
+			size:         inode.GetSize(),
+		}, nil
+	}
+
 	if !fs.ValidPath(name) {
 		return nil, ext4.wrapError(op, name, fs.ErrInvalid)
 	}
